@@ -181,7 +181,7 @@ ${Object.entries(outingMap).map(([date, hours]) => {
             'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`
           },
           body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
+            model: 'gpt-4o',
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 600,
             temperature: 0.7,
