@@ -1,42 +1,72 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import RecommendedChores from './RecommendedChores';
-import { UserPreference } from '../hooks/useChoreRecommendations';
-import { supabase } from '../supabaseClient';
+//結果画面
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { supabase } from '../supabaseClient'
+import { useActivitySuggestions } from '../hooks/useActivitySuggestions'
+import { UserInfo } from '../hooks/useUserInfoForm'
+import { fetchWeatherByLatLon, WeatherData } from '../api/weather'
 
 interface ResultsPageProps {
-  preferences: UserPreference;
-  currentWeather: string | null;
-  temperature: number | null;
+  userInfo: UserInfo
 }
 
-const ResultsPage: React.FC<ResultsPageProps> = ({ preferences, currentWeather, temperature }) => {
-  const navigate = useNavigate();
+const ResultsPage: React.FC<ResultsPageProps> = ({ userInfo }) => {
+  const navigate = useNavigate()
+  const [weather, setWeather] = useState<WeatherData | null>(null)
+
+  useEffect(() => {
+    console.log(process.env.REACT_APP_OPENAI_API_KEY)
+    fetchWeatherByLatLon(34.6937, 135.5023)
+      .then(setWeather)
+      .catch(console.error)
+  }, [])
+
+  const { suggestions, loading, error } = useActivitySuggestions(userInfo, weather)
+
+  const handleBack = () => {
+    navigate('/')
+  }
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error signing out:', error);
-    }
-  };
-
-  const handleBackToPreferences = () => {
-    navigate('/'); // 優先度設定ページに戻る
-  };
+    await supabase.auth.signOut()
+    navigate('/login', { replace: true })
+  }
 
   return (
-    <div>
-      <h1>家事推薦結果</h1>
-      <button onClick={handleLogout}>ログアウト</button>
-      <p>天気の優先度: {preferences.weatherPriority}</p>
-      <p>頻度の優先度: {preferences.frequencyPriority}</p>
-      {/* 天気と気温の表示 */}
-      {currentWeather && <p>現在の天気: {currentWeather}</p>}
-      {temperature !== null && <p>現在の気温: {temperature}℃</p>}
-      <RecommendedChores userPreferences={preferences} />
-      <button onClick={handleBackToPreferences}>優先度を再設定する</button>
-    </div>
-  );
-};
+    <div style={{ maxWidth: 600, margin: '2rem auto', padding: '1rem' }}>
+      <h2>今日の行動提案</h2>
 
-export default ResultsPage;
+      {!weather && <p>天候データを取得中（大阪）...</p>}
+
+      {(loading || !weather) && !error && <p>提案を生成中...</p>}
+
+      {error && (
+        <p style={{ color: 'red' }}>
+          エラーが発生しました: {error}
+        </p>
+      )}
+
+      {!loading && suggestions && weather && (
+        <div
+          style={{
+            whiteSpace: 'pre-wrap',
+            background: '#f5f5f5',
+            padding: '1rem',
+            borderRadius: 4,
+          }}
+        >
+          {suggestions}
+        </div>
+      )}
+
+      <div style={{ marginTop: '1.5rem' }}>
+        <button onClick={handleBack}>設定を変更する</button>
+        <button onClick={handleLogout} style={{ marginLeft: 8 }}>
+          ログアウト
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default ResultsPage
